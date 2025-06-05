@@ -100,8 +100,9 @@ vim.g.have_nerd_font = false
 
 -- Make line numbers default
 vim.opt.number = true
--- Enable relative line numbers to help with jumping
-vim.opt.relativenumber = true
+-- You can also add relative line numbers, to help with jumping.
+--  Experiment for yourself to see if you like it!
+-- vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -156,7 +157,6 @@ vim.opt.cursorline = true
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
 
-
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
@@ -189,20 +189,6 @@ vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left wind
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
-
--- Move by visual lines when no count is provided
-vim.keymap.set('n', 'j', "v:count == 0 and 'gj' or 'j'", { expr = true })
-vim.keymap.set('n', 'k', "v:count == 0 and 'gk' or 'k'", { expr = true })
-
--- Jump to the visual line end/start
-vim.keymap.set('n', '$', 'g$')
-vim.keymap.set('n', '0', 'g0')
-vim.keymap.set('n', 'g$', '$')
-vim.keymap.set('n', 'g0', '0')
-
--- Let G and gg move to end/start of the document line
-vim.keymap.set('n', 'G', 'G$')
-vim.keymap.set('n', 'gg', 'gg0')
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
@@ -999,3 +985,7 @@ require('lazy').setup({
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
 
+local vimrc = vim.fn.expand '~/.vimrc'
+if vim.fn.filereadable(vimrc) == 1 then
+  vim.cmd('source ' .. vimrc)
+end
