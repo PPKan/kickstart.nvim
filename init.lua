@@ -264,7 +264,7 @@ require('lazy').setup({
       default_command   = 'C:\\tools\\im-select.exe',
 
       -- 進/離 Insert 才交給插件處理
-      set_default_events  = { 'VimEnter', 'FocusGained', 'InsertLeave', 'CmdlineLeave' },
+      set_default_events  = { 'VimEnter', 'FocusGained', 'InsertLeave' },
       set_previous_events = { 'FocusGained', 'InsertEnter' },
 
       async_switch_im = true,
