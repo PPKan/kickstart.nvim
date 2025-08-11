@@ -256,62 +256,116 @@ require('lazy').setup({
     },
   },
 
-{ -- im_select
+
+{ -- im_select with debounced atomic switching
   'keaising/im-select.nvim',
   config = function()
-    local exe     = 'C:\\tools\\im-select.exe'
-    local US      = '1033'
-    local JP      = '1041'
-    local timeout = 250   -- 最多等 250ms
-    local step    = 10    -- 每 10ms 檢查一次
+    -- === 基本參數（依你的環境調整） ===
+    local exe     = 'C:\\tools\\im-select.exe'  -- im-select.exe 路徑
+    local US      = '1033'                      -- 英文(US)
+    local JP      = '1041'                      -- 日文
+    local timeout = 100                         -- 最多等待切換完成 (ms)
+    local step    = 10                          -- 輪詢間隔 (ms)
+    local tail_defer =60                      -- 離開 Insert 延後切回英文 (ms)
+    local settle    = 40                        -- 切換完成後的緩衝 (ms)
 
-    -- 等待切換「真的」生效
+    local uv = vim.uv or vim.loop
+
+    -- === 工具函式 ===
+    local function file_exists(path)
+      return (uv.fs_stat(path) ~= nil)
+    end
+
+    local function sleep(ms)
+      uv.sleep(ms)
+    end
+
+    local function wait_until(ms_total, ms_step, predicate)
+      local elapsed = 0
+      while elapsed < ms_total do
+        if predicate() then return true end
+        sleep(ms_step)
+        elapsed = elapsed + ms_step
+      end
+      return predicate()
+    end
+
+    -- 取得目前輸入法（im-select.exe 無參數會輸出目前 IM ID）
     local function current_im()
       local out = vim.fn.systemlist(exe)
       return (out and out[1]) or ''
     end
 
+    -- === 進一步防抖：在切換期間丟棄插入字元 ===
+    -- 以狀態旗標控制，只有在「正在切換」時才丟棄字元
+    local ime_guard = false
+
+    -- 同步切換並等待完成（原子化）
     local function switch_and_wait(target)
+      if not file_exists(exe) then
+        vim.notify('[im-select] not found at: ' .. exe, vim.log.levels.WARN)
+        return
+      end
       if current_im() == target then return end
-      -- 送出切換
-      vim.fn.system(exe .. ' ' .. target)
-      -- 等到切換完成或超時
-      vim.wait(timeout, function()
+
+      ime_guard = true                     -- 開啟保護窗：丟棄 Insert 中的字元
+      vim.fn.system(exe .. ' ' .. target)  -- 送出切換命令
+
+      -- 等到真的切換完成
+      wait_until(timeout, step, function()
         return current_im() == target
-      end, step)
-      -- 再給 IME/TSF 一點點緩衝（避免邊界抖動）
-      vim.wait(80)
+      end)
+
+      -- 再給 IME/TSF 一點緩衝，確保穩定
+      sleep(settle)
+      ime_guard = false                    -- 關閉保護窗
     end
 
+    -- === im-select.nvim：只負責告知 exe 與預設 IM，事件交給我們控管 ===
     require('im_select').setup{
-      default_im_select   = US,                     -- Normal 模式用英文
+      default_im_select   = US,
       default_command     = exe,
-      set_default_events  = {},                     -- 我們改用自訂事件
+      set_default_events  = {},     -- 全部改由我們的 autocmd 控制
       set_previous_events = {},
-      async_switch_im     = false,                  -- 關閉非同步
+      async_switch_im     = false,  -- 關閉非同步，改用同步等待
     }
 
-    ----------------------------------------------------------------------
-    -- 進入 / 離開 Insert：同步切換 & 等待完成
-    ----------------------------------------------------------------------
-    vim.api.nvim_create_autocmd('InsertEnter', {
-      callback = function() switch_and_wait(JP) end,  -- 你想在 Insert 用日文
-    })
+    -- === Autocmds ===
 
-    vim.api.nvim_create_autocmd('InsertLeave', {
+    -- 進入 Insert：先切到日文，等待完成（防止第一批字元撞進切換期）
+    vim.api.nvim_create_autocmd('InsertEnter', {
       callback = function()
-        -- 離開 Insert 時反而不急，延後一點以避免收尾鍵撞到切換
-        vim.defer_fn(function() switch_and_wait(US) end, 120)
+        switch_and_wait(JP)
       end,
     })
 
-    ----------------------------------------------------------------------
-    -- 離開 cmdline 一律切回英文（保留你的邏輯）
-    ----------------------------------------------------------------------
-    vim.api.nvim_create_autocmd('CmdlineLeave', function()
-      vim.fn.system(exe .. ' ' .. US)
-    end)
-  end
+    -- 離開 Insert：延後一點再切回英文，避開尾端鍵撞擊
+    vim.api.nvim_create_autocmd('InsertLeave', {
+      callback = function()
+        vim.defer_fn(function()
+          switch_and_wait(US)
+        end, tail_defer)
+      end,
+    })
+
+    -- 離開命令列：強制切回英文
+    vim.api.nvim_create_autocmd('CmdlineLeave', {
+      callback = function()
+        if file_exists(exe) then
+          vim.fn.system(exe .. ' ' .. US)
+        end
+      end,
+    })
+
+    -- 在「切換進行中」的這段時間，丟棄插入字元（進一步防抖的關鍵）
+    vim.api.nvim_create_autocmd('InsertCharPre', {
+      callback = function()
+        if ime_guard then
+          vim.v.char = ''   -- 丟棄字元，寧缺毋濫以避免卡鍵
+        end
+      end,
+    })
+  end,
 }
 ,
 
