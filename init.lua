@@ -259,32 +259,61 @@ require('lazy').setup({
 { -- im_select
   'keaising/im-select.nvim',
   config = function()
-    require('im_select').setup {
-      default_im_select = '1033',          -- 英文 (US)
-      default_command   = 'C:\\tools\\im-select.exe',
+    local exe     = 'C:\\tools\\im-select.exe'
+    local US      = '1033'
+    local JP      = '1041'
+    local timeout = 250   -- 最多等 250ms
+    local step    = 10    -- 每 10ms 檢查一次
 
-      -- 進/離 Insert 才交給插件處理
-      set_default_events  = { 'VimEnter', 'FocusGained', 'InsertLeave' },
-      set_previous_events = { 'FocusGained', 'InsertEnter' },
+    -- 等待切換「真的」生效
+    local function current_im()
+      local out = vim.fn.systemlist(exe)
+      return (out and out[1]) or ''
+    end
 
-      async_switch_im = true,
+    local function switch_and_wait(target)
+      if current_im() == target then return end
+      -- 送出切換
+      vim.fn.system(exe .. ' ' .. target)
+      -- 等到切換完成或超時
+      vim.wait(timeout, function()
+        return current_im() == target
+      end, step)
+      -- 再給 IME/TSF 一點點緩衝（避免邊界抖動）
+      vim.wait(80)
+    end
+
+    require('im_select').setup{
+      default_im_select   = US,                     -- Normal 模式用英文
+      default_command     = exe,
+      set_default_events  = {},                     -- 我們改用自訂事件
+      set_previous_events = {},
+      async_switch_im     = false,                  -- 關閉非同步
     }
 
-    ------------------------------------------------------------------
-    -- 離開 command-line 時強制切回英文，但不覆寫 prev_im ----------
-    ------------------------------------------------------------------
-    vim.api.nvim_create_autocmd('CmdlineLeave', {
-      callback = function()
-        -- Windows / WSL
-        vim.fn.system('C:\\tools\\im-select.exe 1033')
+    ----------------------------------------------------------------------
+    -- 進入 / 離開 Insert：同步切換 & 等待完成
+    ----------------------------------------------------------------------
+    vim.api.nvim_create_autocmd('InsertEnter', {
+      callback = function() switch_and_wait(JP) end,  -- 你想在 Insert 用日文
+    })
 
-        -- macOS → vim.fn.system('macism com.apple.keylayout.ABC')
-        -- Fcitx5 → vim.fn.system('fcitx5-remote -c')
-        -- IBus   → vim.fn.system('ibus engine xkb:us::eng')
+    vim.api.nvim_create_autocmd('InsertLeave', {
+      callback = function()
+        -- 離開 Insert 時反而不急，延後一點以避免收尾鍵撞到切換
+        vim.defer_fn(function() switch_and_wait(US) end, 120)
       end,
     })
-  end,
-},
+
+    ----------------------------------------------------------------------
+    -- 離開 cmdline 一律切回英文（保留你的邏輯）
+    ----------------------------------------------------------------------
+    vim.api.nvim_create_autocmd('CmdlineLeave', function()
+      vim.fn.system(exe .. ' ' .. US)
+    end)
+  end
+}
+,
 
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
   --
