@@ -8,7 +8,7 @@ return {
     event = 'InsertEnter',
     opts = {
       suggestion = {
-        enabled = false,
+        enabled = true,
         auto_trigger = true, -- 要像 VSCode 自動出現就改成 true
         keymap = {
           accept = '<M-l>', -- 預設
