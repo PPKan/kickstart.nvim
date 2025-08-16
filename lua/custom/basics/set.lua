@@ -38,6 +38,7 @@ function M.setup()
 
   opt.updatetime = 50
 
+
   -- This is to indicate the line is too long
   -- opt.colorcolumn = '80'
 
