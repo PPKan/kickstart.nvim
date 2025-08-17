@@ -38,7 +38,6 @@ function M.setup()
 
   opt.updatetime = 50
 
-
   -- This is to indicate the line is too long
   -- opt.colorcolumn = '80'
 
@@ -71,6 +70,17 @@ function M.setup()
   vim.api.nvim_set_keymap('n', 'G', 'G$', { noremap = true, silent = true })
   vim.api.nvim_set_keymap('n', 'j', 'gj', { noremap = true, silent = true })
   vim.api.nvim_set_keymap('n', 'k', 'gk', { noremap = true, silent = true })
+
+  vim.keymap.set('n', '<leader>f', function()
+    require('conform').format { bufnr = 0 }
+  end)
+
+  vim.keymap.set('x', '<leader>vf', function()
+    require('conform').format {
+      bufnr = 0,
+      lsp_fallback = true, -- 萬一外部 formatter 不可用就用 LSP
+    }
+  end, { desc = 'Format selection' })
 
   -- config virtual line for diagnostics
   vim.diagnostic.config { virtual_text = true }
