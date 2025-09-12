@@ -31,6 +31,7 @@ function M.setup()
   opt.incsearch = true
 
   opt.termguicolors = true
+  opt.cursorline = false
 
   opt.scrolloff = 8
   opt.signcolumn = 'yes'
