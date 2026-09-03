@@ -3,6 +3,7 @@ return {
       -- must be imported after mason required
       'mfussenegger/nvim-lint',
       event = { 'BufReadPost', 'BufNewFile' },
+      enabled = false,
       config = function()
         local lint = require 'lint'
 
