@@ -233,13 +233,15 @@ require('lazy').setup({
   {
     -- im_select
     'keaising/im-select.nvim',
-    enabled = false,
+    enabled = true,
     config = function()
+    local userprofile = os.getenv("userprofile")
       require('im_select').setup {
-        default_im_select = '1033', -- 英文 (US)
-        default_comman = 'C:\\tools\\im-select.exe',
+        default_im_select = '1033',
+        -- add im_select path to env
+        -- and I have no idea why "default_comman" have no 'd' but it works anyway
+        default_comman = userprofile .. '/scoop/apps/im-select/1.0.2/im-select.exe',
 
-        -- 進/離 Insert 才交給插件處理
         set_default_events = { 'VimEnter', 'FocusGained', 'InsertLeave' },
         set_previous_events = { 'FocusGained', 'InsertEnter' },
 
